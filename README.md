@@ -6,7 +6,7 @@
 [![Protocol](https://img.shields.io/badge/protocol-MCP%201.26-purple.svg)](https://modelcontextprotocol.io/)
 [![Embeddings](https://img.shields.io/badge/embeddings-E5--multilingual%20(ONNX%20Local)-green.svg)](https://github.com/microsoft/onnxruntime)
 [![Storage](https://img.shields.io/badge/storage-SQLite%20%2B%20Markdown-orange.svg)](https://obsidian.md/)
-[![Tests](https://img.shields.io/badge/tests-330%20passing%20(19%20suites)-brightgreen.svg)]()
+[![Testes](https://img.shields.io/badge/testes-19%20su%C3%ADtes-blue.svg)](#-suíte-de-testes-automatizados)
 [![Version](https://img.shields.io/badge/version-v0.5%20%2B%20Patch%2007-blueviolet.svg)]()
 
 ---
@@ -93,7 +93,7 @@ flowchart TD
 
 ### Cenário 2: Aplicação Universal para Software & Agentes Autônomos (Enterprise Memory)
 
-O mesmo motor pode ser desacoplado do uso pessoal e servir como **camada de memória de missão crítica** para qualquer sistema de software ou esquadrão multi-agente:
+O mesmo motor pode ser desacoplado do uso pessoal e servir como **camada de memória auditável** para outros sistemas de software e fluxos com múltiplos agentes:
 
 ```mermaid
 flowchart TD
@@ -258,43 +258,39 @@ O diretório [`00_Manual/`](00_Manual/) contém a especificação formal que reg
 
 ## 🚀 Como Começar do Zero (Template Limpo)
 
-O projeto foi concebido para que qualquer desenvolvedor possa clonar o mecanismo e iniciar imediatamente com seus próprios dados.
+O guia abaixo usa **Windows com PowerShell**. O fluxo foi validado com Python 3.12 no Windows. O núcleo usa APIs do Windows para operações exclusivas em arquivos. Linux e macOS ainda precisam de uma implementação e validação dessa camada.
 
 ### 1. Clonar e Instalar Dependências
-```bash
+```powershell
 git clone https://github.com/leoguimaraes49/epistemic-memory-core.git
 cd epistemic-memory-core
 
 python -m venv .venv
-# No Windows:
-.\.venv\Scripts\activate
-# No Linux/macOS:
-source .venv/bin/activate
-
-pip install -r requirements-execucao04.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-execucao04.txt
 ```
 
 ### 2. Inicializar um Novo Cofre Vazio
 Execute o script utilitário para criar as pastas e tabelas relacionais do seu novo cofre:
-```bash
-python scripts/iniciar-template.py --destino ./meu-cofre --nome "Meu Cérebro"
+```powershell
+.\.venv\Scripts\python.exe scripts/iniciar-template.py --destino ./meu-cofre --nome "Meu Cérebro"
 ```
 
 ### 3. Iniciar o Dashboard Gráfico
-```bash
-python src/dashboard.py
+```powershell
+.\.venv\Scripts\python.exe src/dashboard.py
 ```
 Abra seu navegador em `http://127.0.0.1:8080` para acompanhar o estado do sistema.
 
 ### 4. Conectar seu Assistente de IA via MCP
-Adicione ao arquivo de configuração de servidores MCP do seu assistente (Antigravity, Codex, Claude Code, Cursor, etc.):
+Use o Python do ambiente virtual e o caminho absoluto do servidor. Para permitir que esse cliente acesse o cofre, defina `CEREBRO_PESSOAL_ACESSO=permitido` no ambiente do servidor. O exemplo usa o formato JSON de clientes com `mcpServers`.
 
 ```json
 {
   "mcpServers": {
     "cerebro_pessoal": {
-      "command": "python",
-      "args": ["/caminho/completo/para/src/ponte_pessoal.py"]
+      "command": "C:/caminho/epistemic-memory-core/.venv/Scripts/python.exe",
+      "args": ["C:/caminho/epistemic-memory-core/src/ponte_pessoal.py"],
+      "env": { "CEREBRO_PESSOAL_ACESSO": "permitido" }
     }
   }
 }
@@ -302,14 +298,26 @@ Adicione ao arquivo de configuração de servidores MCP do seu assistente (Antig
 
 ---
 
+## Busca vetorial local
+
+A configuração inicial usa busca por texto e pelas ligações do grafo. A etapa vetorial usa o modelo multilíngue E5 em CPU. Os dois arquivos também são necessários para aprovar a bateria completa exigida pela ponte antes de processar contribuições e buscar contexto. Baixe-os da revisão indicada e salve-os em `modelos/e5-multilingual-small/`.
+
+- [model.onnx](https://huggingface.co/intfloat/multilingual-e5-small/blob/614241f622f53c4eeff9890bdc4f31cfecc418b3/onnx/model.onnx) (470 MB).
+- [tokenizer.json](https://huggingface.co/intfloat/multilingual-e5-small/blob/614241f622f53c4eeff9890bdc4f31cfecc418b3/tokenizer.json) (17 MB).
+
+O motor confere os SHA-256 dos dois arquivos antes de carregá-los. Para habilitar a busca vetorial no uso normal, defina `embeddings.enabled` como `true` em `config/execucao.json` e coloque o caminho absoluto da pasta em `embeddings.folder`. Se os arquivos estiverem fora da pasta padrão, defina também `EMC_EMBEDDINGS_DIR` para a suíte.
+
 ## 🧪 Suíte de Testes Automatizados
 
-O sistema conta com **19 suítes ativas de testes automatizados** (`330` casos `unittest` + 2 suítes MCP end-to-end) em [`tests/`](tests/), além de 2 scripts legados de protocolo (v0.3/v0.4). Todos os testes rodam em **fixtures isoladas e temporárias**, garantindo zero risco aos dados reais:
+O repositório contém **19 suítes automatizadas** em [`tests/`](tests/), com casos unitários e verificações MCP de ponta a ponta usando dados fictícios em diretórios temporários. Para rodar a bateria completa, instale primeiro os dois arquivos da busca vetorial.
 
 ```powershell
 # Executar a bateria completa das 19 suítes com validação criptográfica por hash de código
-python src/cli.py autotestes
+$env:CEREBRO_PESSOAL_ACESSO = "permitido"
+.\.venv\Scripts\python.exe src/cli.py autotestes
 ```
+
+Sem os recursos vetoriais e sem um caminho alternativo configurado, a suíte vetorial fica como `skipped` e o resultado geral fica `incomplete` se as demais passarem. Um caminho explícito inválido ou uma instalação parcial gera falha. As operações que exigem a bateria completa continuam condicionadas a um relatório `passed`.
 
 ### Principais Suítes Cobertas:
 - **`tests/testes.py`**: Integridade atômica, exclusão de arquivo pelo SO e digest SHA-256.
@@ -326,7 +334,7 @@ python src/cli.py autotestes
 
 ## 🛡️ Garantias e Limites Conscientes
 
-- **O que este sistema garante:** Garantia matemática de integridade local (SHA-256), histórico de revisões auditável, prevenção de colisões concorrentes, contratos ACID locais em SQLite e busca híbrida local de alto desempenho.
+- **Controles implementados.** Conferência local por SHA-256, histórico de revisões auditável, controle de concorrência, transações SQLite e busca híbrida quando os recursos vetoriais estão instalados.
 - **O que este sistema NÃO faz:** Não inventa diagnósticos clínicos, não emite probabilidades sem suporte empírico, não envia dados privados para serviços externos não autorizados e não executa código arbitrário sem isolamento em fixture.
 
 ---

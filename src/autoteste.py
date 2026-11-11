@@ -20,6 +20,7 @@ SUITES += ('testes_evidencias.py', 'testes_persistencia05.py', 'testes_mcp05.py'
 SUITES += ('testes_recuperacao_fila.py', 'testes_melhorias_seguranca.py', 'testes_operacao_melhorias.py')
 SUITES += ('testes_atribuicao.py', 'testes_continuacoes07.py')
 SUITE_TIMEOUT_SECONDS=300
+SUITE_SKIPPED_EXIT_CODE=77
 
 
 def fingerprint():
@@ -47,11 +48,14 @@ def _run_tests(force=False):
             result=subprocess.run([sys.executable,str(REAL_SYSTEM/'tests'/name)],cwd=REAL_SYSTEM,env=env,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=SUITE_TIMEOUT_SECONDS)
             output=result.stdout+result.stderr
             count=re.search(r'Ran (\d+) tests? in ',output)
-            checks.append({'suite':name,'passed':result.returncode==0,
+            status = {0:'passed', SUITE_SKIPPED_EXIT_CODE:'skipped'}.get(result.returncode, 'failed')
+            checks.append({'suite':name,'status':status,'passed':status=='passed',
                            'tests_run':int(count.group(1)) if count else None,'output':output[-20000:]})
         except subprocess.TimeoutExpired:
-            checks.append({'suite':name,'passed':False,'output':'tempo de teste excedido ('+str(SUITE_TIMEOUT_SECONDS)+' s)'})
-    report={'status':'passed' if all(x['passed'] for x in checks) else 'failed','fingerprint':current,'checked_at':NOW(),'suites':checks,'scope':'fixtures fictícias; não valida todo o manual'}
+            checks.append({'suite':name,'status':'failed','passed':False,'output':'tempo de teste excedido ('+str(SUITE_TIMEOUT_SECONDS)+' s)'})
+    statuses = {check['status'] for check in checks}
+    status = 'failed' if 'failed' in statuses else 'incomplete' if 'skipped' in statuses else 'passed'
+    report={'status':status,'fingerprint':current,'checked_at':NOW(),'suites':checks,'scope':'fixtures fictícias; não valida todo o manual'}
     if fingerprint()!=current: report['status']='changed_during_test'
     path.parent.mkdir(exist_ok=True)
     history=path.parent/'autotestes';history.mkdir(exist_ok=True)

@@ -7,7 +7,7 @@ from nucleo import REAL_SYSTEM,REAL_VAULT,Store,config_file
 from autonomia import atomic_json
 from execucao import DEFAULT
 
-async def check():
+async def check(model):
     with tempfile.TemporaryDirectory(prefix='cold-mcp-',dir=REAL_SYSTEM/'testes_temporarios') as folder:
         root=Path(folder);sources=Store(root/'sistema',root/'cofre')
         manual=sources.vault/'00_Manual';manual.mkdir()
@@ -16,8 +16,6 @@ async def check():
             src_manual=REAL_SYSTEM/'00_Manual'/name
             (manual/name).write_bytes((src_manual if src_manual.exists() else REAL_VAULT/'00_Manual'/name).read_bytes())
         atomic_json(sources.root/'manual_manifest.json',manifest)
-        model=Path(os.environ.get('EMC_EMBEDDINGS_DIR',str(REAL_SYSTEM/'modelos'/'e5-multilingual-small')))
-        assert (model/'model.onnx').exists(),'Recursos vetoriais validados precisam estar instalados'
         cfg=dict(DEFAULT,enabled=True,embeddings={'enabled':True,'folder':str(model)})
         atomic_json(sources.root/'execucao.json',cfg)
         original=sources.apply('original','create',title='Dado inteiramente fictício',text='A palavra de controle da fixture é maracujá.')
@@ -39,4 +37,14 @@ async def check():
         return {'status':'passed','scope':'MCP frio + ONNX real, fixture fictícia','cache_reused':True,
                 'elapsed_seconds':round(time.monotonic()-start,3),'model_calls':0}
 
-if __name__=='__main__':print(json.dumps(asyncio.run(check()),ensure_ascii=False))
+if __name__=='__main__':
+    configured_dir = os.environ.get('EMC_EMBEDDINGS_DIR')
+    model = Path(configured_dir) if configured_dir else REAL_SYSTEM/'modelos'/'e5-multilingual-small'
+    assets = ('model.onnx', 'tokenizer.json')
+    if not configured_dir and not any((model/name).exists() for name in assets):
+        print('Suíte não executada: instale os recursos vetoriais descritos no README.', file=sys.stderr)
+        sys.exit(77)
+    missing = [name for name in assets if not (model/name).is_file()]
+    if missing:
+        sys.exit('Recursos vetoriais ausentes em '+str(model)+': '+', '.join(missing))
+    print(json.dumps(asyncio.run(check(model.resolve())), ensure_ascii=False))
