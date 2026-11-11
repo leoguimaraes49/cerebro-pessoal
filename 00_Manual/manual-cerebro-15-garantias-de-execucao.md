@@ -69,6 +69,12 @@ Uma checagem sem alegações opcionais retorna `not_requested` e segue o contrat
 
 Durante a publicação, `estado/implantacao.lock` sinaliza manutenção para impedir novas operações de conteúdo na ponte. O trabalhador é parado pela configuração e iniciado novamente após conferência de código, manual e autotestes. Os hashes aprovados incluem os módulos novos e seus testes. A cópia anterior de código, configuração e manual permite reversão compatível.
 
+### Arquivos controlados por plataforma
+
+A versão pública conserva SHA-256, revisões, transações SQLite e distinção entre proposta e efeito confirmado em Windows e POSIX. O Windows mantém a abertura exclusiva e a exclusão pelo identificador de arquivo. Em POSIX, a trava de arquivo coordena processos cooperativos. A leitura de fontes verifica a identidade do arquivo aberto, e a gravação de fontes e derivados confere identidade e conteúdo antes da escrita e antes da confirmação. A exclusão confere a identidade e o conteúdo imediatamente antes de remover o nome.
+
+Edição direta, sincronização ou substituição por um processo que ignore a trava pode interferir em POSIX. A detecção vale para alterações observadas nas verificações, pois um programa externo pode atuar entre uma verificação e o próximo passo. Divergências detectadas durante o efeito mantêm a operação sem confirmação para reconciliação. Use a ponte para gravar as notas gerenciadas. Para reversão da adaptação, retorne à revisão anterior do código e do manifesto no Windows. A adaptação não requer migração do esquema do cofre.
+
 O estado da ponte e da execução informa a versão 0.5. A atividade do trabalhador informa `runtime_version` no seu estado local. A conferência em um cliente MCP de teste e a versão carregada pela conversa atual são verificações próprias. A CLI local atende a operação quando a sessão tiver ferramentas antigas ou bloqueadas pela política do cliente.
 
 O histórico de uma demanda mantém suas etapas e efeitos. Se o contrato ou manifesto mudar durante uma demanda pendente, o coordenador exige replanejamento antes de continuar. A atualização não reexecuta silenciosamente uma entrevista antiga.

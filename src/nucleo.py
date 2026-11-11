@@ -1,8 +1,14 @@
-"""Núcleo local: uma fonte por arquivo, escrita Windows com exclusão de compartilhamento."""
-import ctypes, hashlib, json, msvcrt, os, re, sqlite3, time, uuid
+"""Núcleo local: uma fonte por arquivo, com controle de concorrência por plataforma."""
+import errno, hashlib, json, os, re, sqlite3, stat, time, uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+if os.name == 'nt':
+    import ctypes
+    import msvcrt
+else:
+    import fcntl
 
 HOME=Path(__file__).resolve().parent.parent
 REAL_VAULT=Path(os.environ.get('EMC_VAULT',str(HOME/'meu-cofre'))).resolve()
@@ -19,6 +25,27 @@ class Locked(Exception): pass
 class Invalid(Exception): pass
 
 def exclusive(path,create=False,delete=False):
+    if os.name != 'nt':
+        flags = os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK
+        if create:
+            flags |= os.O_CREAT | os.O_EXCL
+        fd = os.open(path, flags, 0o600)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                raise Invalid('arquivo controlado deve ser regular e sem outros links físicos')
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as error:
+                if error.errno in (errno.EAGAIN, errno.EACCES):
+                    raise Locked('arquivo ocupado; nenhuma escrita aplicada') from error
+                raise
+            verify_posix_file(path, fd)
+            return os.fdopen(fd, 'r+b')
+        except BaseException:
+            os.close(fd)
+            raise
+
     kernel=ctypes.WinDLL('kernel32',use_last_error=True)
     kernel.CreateFileW.argtypes=[ctypes.c_wchar_p,ctypes.c_uint32,ctypes.c_uint32,ctypes.c_void_p,ctypes.c_uint32,ctypes.c_uint32,ctypes.c_void_p]
     kernel.CreateFileW.restype=ctypes.c_void_p
@@ -30,6 +57,34 @@ def exclusive(path,create=False,delete=False):
     try: fd=msvcrt.open_osfhandle(h,os.O_RDWR|os.O_BINARY)
     except Exception: kernel.CloseHandle(ctypes.c_void_p(h)); raise
     return os.fdopen(fd,'r+b')
+
+
+def verify_posix_file(path, fd, expected=None):
+    """Recusa mudanças observáveis antes de confirmar um efeito sob trava cooperativa."""
+    if expected is not None and os.pread(fd, len(expected) + 1, 0) != expected:
+        raise Uncertain('conteúdo mudou durante a operação; reconciliar antes de repetir')
+    try:
+        named = os.stat(path, follow_symlinks=False)
+    except FileNotFoundError as error:
+        raise Uncertain('arquivo saiu do caminho durante a operação') from error
+    opened = os.fstat(fd)
+    if named.st_nlink != 1 or not os.path.samestat(named, opened):
+        raise Uncertain('arquivo foi substituído ou religado durante a operação')
+
+
+def remove_locked_file(path, stream, expected):
+    if os.name != 'nt':
+        verify_posix_file(path, stream.fileno(), expected)
+        path.unlink()
+        return
+
+    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+    kernel.SetFileInformationByHandle.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_void_p,ctypes.c_uint32]
+    kernel.SetFileInformationByHandle.restype=ctypes.c_int
+    disposition=ctypes.c_ubyte(1)
+    if not kernel.SetFileInformationByHandle(ctypes.c_void_p(msvcrt.get_osfhandle(stream.fileno())),4,ctypes.byref(disposition),ctypes.sizeof(disposition)):
+        raise OSError(ctypes.get_last_error(),'não foi possível marcar arquivo para exclusão')
+
 
 READ_BACKOFF=(0.01,0.025,0.05,0.1)
 
@@ -43,7 +98,11 @@ def acquire_content(path,create=False,delete=False):
 
 
 def read_exclusive(path):
-    with acquire_content(path) as stream:return stream.read()
+    with acquire_content(path) as stream:
+        data = stream.read()
+        if os.name != 'nt':
+            verify_posix_file(path, stream.fileno())
+        return data
 
 def render(n):
     common=['id','record_type','schema_version','revision','title','created_at','updated_at','created_by','access_policy_ref','lifecycle_status','payload_format']
@@ -174,6 +233,7 @@ class Store:
                 if not path.exists():raise Uncertain('arquivo ausente; reconciliar antes de repetir')
                 f=acquire_content(path)
             with f:
+                fd = f.fileno()
                 old=f.read(); current=sha(old)
                 if current==newhash:
                     pass # efeito anterior aplicado; confirmação perdida
@@ -187,7 +247,11 @@ class Store:
                         if dest.exists() and sha(dest.read_bytes())!=oldhash:raise Conflict('histórico divergente')
                         if not dest.exists():
                             with dest.open('xb') as h:h.write(old);h.flush();os.fsync(h.fileno())
-                    f.seek(0); f.write(data); f.truncate(); f.flush(); os.fsync(f.fileno())
+                    if os.name != 'nt':
+                        verify_posix_file(path, fd, old)
+                    f.seek(0); f.write(data); f.truncate(); f.flush(); os.fsync(fd)
+                if os.name != 'nt':
+                    verify_posix_file(path, fd, data)
             result={'status':'confirmed','id':ident,'revision':expected+1}
             if row is None:c.execute('INSERT INTO records VALUES(?,?,?,?)',(ident,name,expected+1,newhash))
             else:c.execute('UPDATE records SET revision=?,digest=? WHERE id=?',(expected+1,newhash,ident))
@@ -217,13 +281,9 @@ class Store:
             path=self.safe_path(name)
             if path.exists():
                 with acquire_content(path,delete=True) as f:
-                    if sha(f.read())!=oldhash:raise Conflict('arquivo alterado durante exclusão; não removido')
-                    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
-                    kernel.SetFileInformationByHandle.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_void_p,ctypes.c_uint32]
-                    kernel.SetFileInformationByHandle.restype=ctypes.c_int
-                    disposition=ctypes.c_ubyte(1)
-                    if not kernel.SetFileInformationByHandle(ctypes.c_void_p(msvcrt.get_osfhandle(f.fileno())),4,ctypes.byref(disposition),ctypes.sizeof(disposition)):
-                        raise OSError(ctypes.get_last_error(),'não foi possível marcar arquivo para exclusão')
+                    old = f.read()
+                    if sha(old)!=oldhash:raise Conflict('arquivo alterado durante exclusão; não removido')
+                    remove_locked_file(path, f, old)
             hist=self.hist/ident
             if hist.exists():
                 if hist.is_symlink() or hist.resolve().parent!=self.hist.resolve():raise Invalid('histórico fora do escopo')

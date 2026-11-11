@@ -258,7 +258,7 @@ O diretório [`00_Manual/`](00_Manual/) contém a especificação formal que reg
 
 ## 🚀 Como Começar do Zero (Template Limpo)
 
-O guia abaixo usa **Windows com PowerShell**. O fluxo foi validado com Python 3.12 no Windows. O núcleo usa APIs do Windows para operações exclusivas em arquivos. Linux e macOS ainda precisam de uma implementação e validação dessa camada.
+O guia usa **Windows com PowerShell** ou **Linux com Bash**. O macOS usa a mesma implementação POSIX, com validação nessa plataforma ainda pendente. O supervisor de reinício por PowerShell é específico do Windows. No Linux, o trabalhador pode ser iniciado com `./.venv/bin/python src/autonomia.py serve` quando habilitado na configuração.
 
 ### 1. Clonar e Instalar Dependências
 ```powershell
@@ -268,6 +268,15 @@ cd epistemic-memory-core
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-execucao04.txt
 ```
+
+No Linux, após clonar e entrar no diretório do repositório, crie o ambiente e instale as dependências.
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements-execucao04.txt
+```
+
+Nos comandos de inicialização do cofre e do painel, use `./.venv/bin/python` no Linux.
 
 ### 2. Inicializar um Novo Cofre Vazio
 Execute o script utilitário para criar as pastas e tabelas relacionais do seu novo cofre:
@@ -296,6 +305,8 @@ Use o Python do ambiente virtual e o caminho absoluto do servidor. Para permitir
 }
 ```
 
+No Linux, use caminhos absolutos para `.venv/bin/python` e `src/ponte_pessoal.py`.
+
 ---
 
 ## Busca vetorial local
@@ -317,6 +328,8 @@ $env:CEREBRO_PESSOAL_ACESSO = "permitido"
 .\.venv\Scripts\python.exe src/cli.py autotestes
 ```
 
+No Linux, execute `CEREBRO_PESSOAL_ACESSO=permitido ./.venv/bin/python src/cli.py autotestes`.
+
 Sem os recursos vetoriais e sem um caminho alternativo configurado, a suíte vetorial fica como `skipped` e o resultado geral fica `incomplete` se as demais passarem. Um caminho explícito inválido ou uma instalação parcial gera falha. As operações que exigem a bateria completa continuam condicionadas a um relatório `passed`.
 
 ### Principais Suítes Cobertas:
@@ -335,6 +348,7 @@ Sem os recursos vetoriais e sem um caminho alternativo configurado, a suíte vet
 ## 🛡️ Garantias e Limites Conscientes
 
 - **Controles implementados.** Conferência local por SHA-256, histórico de revisões auditável, controle de concorrência, transações SQLite e busca híbrida quando os recursos vetoriais estão instalados.
+- **Travas por plataforma.** O Windows bloqueia operações incompatíveis de outros programas enquanto o arquivo está aberto com exclusividade. A trava POSIX coordena os processos que a respeitam. O motor detecta divergências observáveis de conteúdo e identidade. Em POSIX, faça alterações nas notas gerenciadas pela ponte e use o Obsidian para consultá-las. [Garantias e limites da execução](00_Manual/manual-cerebro-15-garantias-de-execucao.md#arquivos-controlados-por-plataforma)
 - **O que este sistema NÃO faz:** Não inventa diagnósticos clínicos, não emite probabilidades sem suporte empírico, não envia dados privados para serviços externos não autorizados e não executa código arbitrário sem isolamento em fixture.
 
 ---

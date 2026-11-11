@@ -11,7 +11,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 # Este alias adquire conteúdo; mutexes continuam usando nucleo.exclusive, imediato.
-from nucleo import Store, Invalid, Conflict, Uncertain, NOW, sha, canon, render, acquire_content as exclusive
+from nucleo import Store, Invalid, Conflict, Uncertain, NOW, sha, canon, render, acquire_content as exclusive, verify_posix_file
 import esquemas
 
 FOLDERS = {'entity': '10_Entidades', 'assertion': '20_Afirmacoes',
@@ -382,6 +382,8 @@ class Knowledge:
             if op[0] == 'confirmed': return result
             known = c.execute('SELECT digest,revision FROM managed WHERE id=?',(result['id'],)).fetchone()
             with exclusive(path, create=not path.exists()) as stream:
+                import os
+                fd = stream.fileno()
                 old = stream.read()
                 if old != data:
                     if result['revision'] == 1 and old: raise Uncertain('arquivo inesperado em criação')
@@ -391,8 +393,11 @@ class Knowledge:
                         archive = hist / (str(expected)+'.md')
                         if archive.exists() and archive.read_bytes() != old: raise Conflict('histórico divergente')
                         if not archive.exists(): archive.write_bytes(old)
-                    import os
-                    stream.seek(0); stream.write(data); stream.truncate(); stream.flush(); os.fsync(stream.fileno())
+                    if os.name != 'nt':
+                        verify_posix_file(path, fd, old)
+                    stream.seek(0); stream.write(data); stream.truncate(); stream.flush(); os.fsync(fd)
+                if os.name != 'nt':
+                    verify_posix_file(path, fd, data)
             c.execute('INSERT OR REPLACE INTO managed VALUES(?,?,?,?)',(result['id'],str(path.relative_to(self.vault)),sha(data),result['revision']))
             c.execute("UPDATE operations SET status='confirmed',data=NULL WHERE key=?",(key,))
             c.execute('UPDATE prepared_requests SET request=NULL WHERE key=?',(key,))

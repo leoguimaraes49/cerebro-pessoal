@@ -1,7 +1,7 @@
 import json, os, sqlite3, subprocess, sys, tempfile, threading, unittest, uuid
 from pathlib import Path
 from unittest.mock import MagicMock,patch
-from nucleo import Store,REAL_SYSTEM,REAL_VAULT,exclusive,acquire_content,sha,Conflict,Invalid,Locked
+from nucleo import Store,REAL_SYSTEM,REAL_VAULT,exclusive,acquire_content,sha,Conflict,Invalid,Locked,Uncertain
 
 class IntegrityTests(unittest.TestCase):
     def setUp(self):
@@ -24,13 +24,14 @@ class IntegrityTests(unittest.TestCase):
         with self.assertRaises(Conflict):self.s.read(r['id'])
         with self.assertRaises(Conflict):self.s.apply('u','correct',ident=r['id'],expected=1,text='não deve sobrescrever',reason='Retificação fictícia')
         self.assertEqual(p.read_text(encoding='utf-8'),'edição externa fictícia')
-    def test_05_exclusive_lock_blocks_external_replace(self):
+    def test_05_exclusive_lock_blocks_cooperative_writer(self):
         r=self.create(); p=next(self.s.folder.glob('*.md')); other=p.parent/'temporario.txt'; other.write_text('outro',encoding='utf-8')
         with acquire_content(p):
             with patch('nucleo.time.sleep') as sleep:
                 with self.assertRaises(Locked):exclusive(p)
                 sleep.assert_not_called()
-            with self.assertRaises(PermissionError):os.replace(other,p)
+            if os.name == 'nt':
+                with self.assertRaises(PermissionError):os.replace(other,p)
             with self.assertRaises(Locked):self.s.apply('u','correct',ident=r['id'],expected=1,text='tentativa',reason='Retificação fictícia')
         self.assertEqual(self.s.read(r['id'])['revision'],1)
     def test_06_restart_recovers_lost_confirmation(self):
@@ -77,14 +78,54 @@ class IntegrityTests(unittest.TestCase):
         p.write_bytes(b'conteudo parcial ficticio')
         with self.assertRaises(Conflict):self.s.apply('u','correct',ident=r['id'],expected=1,text='Correção fictícia',reason='Retificação fictícia')
         self.assertEqual(p.read_bytes(),b'conteudo parcial ficticio'); self.assertEqual(self.s.status('u')['status'],'proposed')
-    def test_13_external_process_cannot_replace_locked_file(self):
-        self.create(); p=next(self.s.folder.glob('*.md')); other=p.parent/'externa.txt'; other.write_text('fictício',encoding='utf-8')
+    def test_13_external_replace_is_blocked_or_detected(self):
+        record=self.create(); p=next(self.s.folder.glob('*.md')); other=p.parent/'externa.txt'; other.write_text('fictício',encoding='utf-8')
         code="import os,sys; os.replace(sys.argv[1],sys.argv[2])"
-        with acquire_content(p):
+        with acquire_content(p) as stream:
             result=subprocess.run([sys.executable,'-c',code,str(other),str(p)],capture_output=True,text=True)
-            self.assertNotEqual(result.returncode,0); self.assertIn('PermissionError',result.stderr)
-        self.assertTrue(other.exists())
+            if os.name == 'nt':
+                self.assertNotEqual(result.returncode,0); self.assertIn('PermissionError',result.stderr)
+            else:
+                from nucleo import verify_posix_file
+                self.assertEqual(result.returncode,0,result.stderr)
+                with self.assertRaises(Uncertain):verify_posix_file(p,stream.fileno())
+        if os.name == 'nt':
+            self.assertTrue(other.exists())
+        else:
+            with self.assertRaises(Conflict):self.s.read(record['id'])
 
+    @unittest.skipUnless(os.name == 'posix', 'trava cooperativa POSIX')
+    def test_posix_drift_during_commit_or_delete_stays_unconfirmed(self):
+        import nucleo
+        original_sync = os.fsync
+        record = self.create()
+        path = next(self.s.folder.glob('*.md'))
+        original_bytes = path.read_bytes()
+
+        def external_edit_after_sync(fd):
+            original_sync(fd)
+            if os.path.samestat(os.fstat(fd), path.stat()):
+                path.write_bytes(b'alteracao externa')
+
+        with patch('nucleo.os.fsync', side_effect=external_edit_after_sync):
+            with self.assertRaises(Uncertain):
+                self.s.apply('correcao','correct',ident=record['id'],expected=1,text='correcao ficticia',reason='fixture')
+        self.assertEqual(self.s.status('correcao')['status'],'proposed')
+        self.assertEqual(path.read_bytes(),b'alteracao externa')
+        path.write_bytes(original_bytes)
+        replacement = path.with_suffix('.tmp')
+        replacement.write_bytes(original_bytes)
+        remove = nucleo.remove_locked_file
+
+        def replace_before_delete(name, stream, expected):
+            os.replace(replacement, name)
+            remove(name, stream, expected)
+
+        with patch('nucleo.remove_locked_file', side_effect=replace_before_delete):
+            with self.assertRaises(Uncertain):
+                self.s.delete('excluir',record['id'],1)
+        self.assertEqual(self.s.status('excluir')['status'],'proposed')
+        self.assertEqual(path.read_bytes(),original_bytes)
 
     def test_14_controlled_delete_and_no_resurrection(self):
         r=self.create(); self.s.apply('u','correct',ident=r['id'],expected=1,text='Correção fictícia',reason='Retificação fictícia')
