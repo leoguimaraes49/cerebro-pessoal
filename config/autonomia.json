@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "content_access": "bloqueado",
+  "interval_seconds": 20,
+  "max_jobs_per_hour": 120,
+  "max_pending_jobs": 100,
+  "max_attempts": 3,
+  "job_timeout_seconds": 300,
+  "job_lifetime_seconds": 600,
+  "retry_base_seconds": 10,
+  "max_files": 10000,
+  "max_file_bytes": 2000000,
+  "max_total_bytes": 64000000,
+  "approved_code": ""
+}

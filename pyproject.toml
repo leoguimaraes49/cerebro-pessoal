@@ -1,0 +1,14 @@
+[project]
+name = "epistemic-memory-core"
+version = "0.7.0"
+description = "Motor determinístico de memória estruturada, auditoria de premissas e verificação de evidências para agentes de IA via MCP."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Leonardo Guimarães (@leoguimaraes49)" }
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

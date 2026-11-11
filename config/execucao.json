@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "model": {
+    "enabled": false,
+    "executable": "",
+    "model": "gpt-6.1-terra"
+  },
+  "embeddings": {
+    "enabled": false,
+    "folder": "modelos/e5-multilingual-small"
+  },
+  "max_actions": 32,
+  "max_model_calls": 3,
+  "max_seconds": 600,
+  "auto_process_sources": true,
+  "auto_adopt_config": true,
+  "message_codec": "compact",
+  "retrieval_policy": "hybrid"
+}

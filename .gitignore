@@ -1,0 +1,30 @@
+# Python & Ambiente
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Estado de execucao local e bancos SQLite
+estado/
+*.sqlite3
+*.sqlite3-journal
+*.lock
+*.log
+
+# Modelos pesados (>100MB nao permitidos no GitHub sem Git LFS)
+modelos/
+*.onnx
+
+# Cofre local gerado pelo usuário
+meu-cofre/
+
+# Diretorios temporarios de testes
+testes_temporarios/*
+!testes_temporarios/.gitkeep
+.pytest_cache/
+
+# Variaveis locais e caches
+.env
+*.local
