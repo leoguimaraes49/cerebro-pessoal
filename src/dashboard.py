@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dashboard Web Local para o Cérebro Pessoal
+Dashboard Web Local para o Epistemic Memory Core
 Interface interativa de visualização, busca e operação do sistema.
 Utiliza apenas a biblioteca padrão do Python (sem dependências externas).
 """
@@ -21,7 +21,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cérebro Pessoal — Dashboard de Operação & Governança</title>
+    <title>Epistemic Memory Core — Dashboard de Operação & Governança</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -190,7 +190,7 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="container">
         <header>
             <div class="logo-area">
-                <h1>🧠 Cérebro Pessoal <span class="badge" id="version-badge">v0.5</span></h1>
+                <h1>🧠 Epistemic Memory Core <span class="badge" id="version-badge">v0.5</span></h1>
                 <p>Protocolo de Memória Estruturada, Governança Epistemológica & Busca Híbrida</p>
             </div>
             <div>
@@ -208,12 +208,12 @@ HTML_PAGE = """<!DOCTYPE html>
             <div class="metric-card">
                 <div class="metric-title">Registros Catalogados</div>
                 <div class="metric-value" id="records-count">--</div>
-                <div class="metric-sub" id="flow-status">Fluxo íntegro</div>
+                <div class="metric-sub" id="flow-status">Verificando referências...</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">Autotestes Locais</div>
-                <div class="metric-value" id="test-status">100% OK</div>
-                <div class="metric-sub">330 testes / 19 suítes</div>
+                <div class="metric-value" id="test-status">--</div>
+                <div class="metric-sub" id="test-detail">Verificando último resultado...</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">Demandas do Grafo</div>
@@ -224,7 +224,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
         <!-- Abas -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-busca')">🔍 Busca Híbrida (E5 + Grafo)</button>
+            <button class="tab-btn active" onclick="switchTab('tab-busca')">🔍 Busca e Grafo</button>
             <button class="tab-btn" onclick="switchTab('tab-demandas')">📋 Demandas & Pendências</button>
             <button class="tab-btn" onclick="switchTab('tab-fontes')">📚 Catálogo de Fontes</button>
             <button class="tab-btn" onclick="switchTab('tab-operacoes')">⚡ Ações & Manutenção</button>
@@ -236,7 +236,7 @@ HTML_PAGE = """<!DOCTYPE html>
             <div class="panel">
                 <div class="panel-title">
                     <span>Recuperação Semântica, Lexical e Expansão de Grafo</span>
-                    <span class="badge badge-success">ONNX Local E5 Ativo</span>
+                    <span class="badge" id="embedding-status">Busca vetorial: verificando...</span>
                 </div>
                 <div class="search-box">
                     <input type="text" id="search-input" placeholder="Digite uma busca conceitual ou pergunta..." onkeypress="if(event.key==='Enter') executeSearch()">
@@ -284,7 +284,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     <div class="action-card">
                         <div>
                             <h3>Bateria de Autotestes</h3>
-                            <p>Executa as 19 suítes completas de testes em processo descartável.</p>
+                            <p>Enfileira os autotestes em fixtures fictícias; requer trabalhador ativo.</p>
                         </div>
                         <button class="btn btn-outline" onclick="triggerTask('selftest')">Executar Autotestes</button>
                     </div>
@@ -323,6 +323,12 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
 
     <script>
+        function escapeHTML(value) {
+            const element = document.createElement('span');
+            element.textContent = String(value ?? '');
+            return element.innerHTML;
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -344,25 +350,45 @@ HTML_PAGE = """<!DOCTYPE html>
             // Estado Geral
             const estado = await fetchAPI('/api/estado');
             if (estado.status === 'ok') {
-                document.getElementById('version-badge').textContent = 'v' + estado.version + ' (' + (estado.runtime_patch || 'patch-07') + ')';
+                document.getElementById('version-badge').textContent = 'v' + estado.version + ' (' + (estado.runtime_patch || 'sem patch informado') + ')';
+            }
+
+            // Configuração e último resultado dos testes (não executa testes).
+            const diagnostic = await fetchAPI('/api/diagnostico');
+            const testStatus = document.getElementById('test-status');
+            const testDetail = document.getElementById('test-detail');
+            const embedStatus = document.getElementById('embedding-status');
+            if (diagnostic.status === 'ok') {
+                const t = diagnostic.tests;
+                const labels = {passed: 'APROVADOS', failed: 'FALHARAM', incomplete: 'INCOMPLETOS',
+                    changed_during_test: 'CÓDIGO ALTERADO', stale: 'DESATUALIZADOS', not_run: 'NÃO EXECUTADOS'};
+                testStatus.textContent = labels[t.status] || 'INDETERMINADO';
+                testDetail.textContent = t.suites == null ? 'Sem resultado válido para este código' :
+                    t.passed + '/' + t.suites + ' suítes aprovadas' + (t.checked_at ? ' · ' + t.checked_at : '');
+                embedStatus.textContent = diagnostic.embeddings_enabled ?
+                    'Busca vetorial: configurada (disponibilidade não verificada)' : 'Busca vetorial: desativada';
+            } else {
+                testStatus.textContent = 'INDISPONÍVEL';
+                testDetail.textContent = 'Não foi possível consultar os autotestes';
+                embedStatus.textContent = 'Busca vetorial: estado indisponível';
             }
 
             // Executor & Worker
             const executor = await fetchAPI('/api/executor');
             if (executor.worker) {
                 const w = executor.worker;
-                document.getElementById('worker-status').innerHTML = w.pid_alive ? 
-                    '<span style="color:var(--success)">ATIVO (PID ' + w.pid + ')</span>' : 
-                    '<span style="color:var(--danger)">PARADO</span>';
-                document.getElementById('worker-heartbeat').textContent = 'Último pulso há ' + (w.heartbeat_age_seconds ? w.heartbeat_age_seconds.toFixed(1) + 's' : 'recente');
+                const workerLabels = {not_started: 'NÃO INICIADO', stopped: 'PARADO',
+                    not_running: 'PARADO', stale: 'SEM PULSO RECENTE', running: 'ATIVO'};
+                document.getElementById('worker-status').textContent = workerLabels[w.health] || 'INDETERMINADO';
+                document.getElementById('worker-heartbeat').textContent = w.heartbeat_age_seconds != null ? 'Último pulso há ' + Number(w.heartbeat_age_seconds).toFixed(1) + 's' : 'Sem pulso registrado';
             }
 
             // Fluxo
             const fluxo = await fetchAPI('/api/fluxo');
             if (fluxo.status === 'ok') {
-                document.getElementById('records-count').textContent = fluxo.records || '257';
+                document.getElementById('records-count').textContent = fluxo.records ?? '--';
                 document.getElementById('flow-status').textContent = fluxo.issues && fluxo.issues.length ? 
-                    fluxo.issues.length + ' problemas' : '100% íntegro sem desvios';
+                    fluxo.issues.length + ' problemas de referências' : 'Sem problemas de referências encontrados';
             }
 
             // Demandas
@@ -381,10 +407,10 @@ HTML_PAGE = """<!DOCTYPE html>
                 data.demands.forEach(d => {
                     const badgeClass = d.operational_status === 'completed' ? 'badge-success' : 'badge-warning';
                     html += `<tr>
-                        <td><code>${d.id.substring(0, 8)}...</code></td>
-                        <td>${d.request_key}</td>
-                        <td><span class="badge ${badgeClass}">${d.operational_status}</span></td>
-                        <td>${d.question ? '<strong>' + d.question + '</strong>' : (d.error || 'N/A')}</td>
+                        <td><code>${escapeHTML(d.id.substring(0, 8))}...</code></td>
+                        <td>${escapeHTML(d.request_key)}</td>
+                        <td><span class="badge ${badgeClass}">${escapeHTML(d.operational_status)}</span></td>
+                        <td>${d.question ? '<strong>' + escapeHTML(d.question) + '</strong>' : escapeHTML(d.error || 'N/A')}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -395,13 +421,12 @@ HTML_PAGE = """<!DOCTYPE html>
         async function loadFontes() {
             const data = await fetchAPI('/api/fontes');
             if (data && data.records) {
-                let html = '<table><thead><tr><th>ID</th><th>Título</th><th>Revisão</th><th>Tamanho</th></tr></thead><tbody>';
+                let html = '<table><thead><tr><th>ID</th><th>Título</th><th>Revisão</th></tr></thead><tbody>';
                 data.records.slice(0, 15).forEach(f => {
                     html += `<tr>
-                        <td><code>${f.id.substring(0, 8)}...</code></td>
-                        <td>${f.title}</td>
-                        <td>Rev ${f.revision}</td>
-                        <td>${f.length || 'N/A'} bytes</td>
+                        <td><code>${escapeHTML(f.id.substring(0, 8))}...</code></td>
+                        <td>${escapeHTML(f.title)}</td>
+                        <td>Rev ${escapeHTML(f.revision)}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -413,7 +438,7 @@ HTML_PAGE = """<!DOCTYPE html>
             const query = document.getElementById('search-input').value.trim();
             if (!query) return;
             const container = document.getElementById('search-results');
-            container.innerHTML = '<span class="loading">Consultando índice vetorial e grafo...</span>';
+            container.textContent = 'Consultando a busca configurada...';
 
             const res = await fetchAPI('/api/buscar', {
                 method: 'POST',
@@ -421,14 +446,16 @@ HTML_PAGE = """<!DOCTYPE html>
                 body: JSON.stringify({ consulta: query, limite: 8 })
             });
 
-            if (res.results && res.results.length) {
+            if (res.status && res.status !== 'ok') {
+                container.textContent = 'Busca indisponível: ' + (res.reason || res.error || res.message || JSON.stringify(res));
+            } else if (res.results && res.results.length) {
                 let html = '<table><thead><tr><th>Tipo</th><th>Título</th><th>Score RRF</th><th>Citação / Trecho</th></tr></thead><tbody>';
                 res.results.forEach(r => {
                     html += `<tr>
-                        <td><span class="badge">${r.kind || 'nota'}</span></td>
-                        <td><strong>${r.title || r.id}</strong></td>
-                        <td>${(r.score || 0).toFixed(4)}</td>
-                        <td>${r.snippet || (r.text ? r.text.substring(0, 140) + '...' : '')}</td>
+                        <td><span class="badge">${escapeHTML(r.record_type || r.kind || 'nota')}</span></td>
+                        <td><strong>${escapeHTML(r.title || r.id)}</strong></td>
+                        <td>${typeof r.score === 'number' ? r.score.toFixed(4) : '—'}</td>
+                        <td>${escapeHTML(r.snippet || (r.text ? r.text.substring(0, 140) + '...' : ''))}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -456,6 +483,29 @@ HTML_PAGE = """<!DOCTYPE html>
 </html>
 """
 
+def dashboard_diagnostic():
+    """Consulta configuração e resultado anterior, sem iniciar os autotestes."""
+    execution = p.estado_execucao()
+    if execution.get('status') != 'ok':
+        return execution
+    from autoteste import REAL_SYSTEM, fingerprint
+    report_path = REAL_SYSTEM / 'estado' / 'autoteste.json'
+    tests = {'status': 'not_run', 'suites': None, 'passed': None}
+    try:
+        if report_path.exists():
+            report = json.loads(report_path.read_text(encoding='utf-8'))
+            suites = report.get('suites', [])
+            tests = {'status': report.get('status', 'unknown'), 'suites': len(suites),
+                     'passed': sum(s.get('status') == 'passed' for s in suites),
+                     'checked_at': report.get('checked_at')}
+            if report.get('fingerprint') != fingerprint():
+                tests['status'] = 'stale'
+    except (OSError, ValueError, TypeError, AttributeError):
+        tests = {'status': 'unknown', 'suites': None, 'passed': None}
+    return {'status': 'ok', 'tests': tests,
+            'embeddings_enabled': bool(execution.get('enabled') and execution.get('embeddings_enabled'))}
+
+
 class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
@@ -466,6 +516,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(HTML_PAGE.encode('utf-8'))
         elif url.path == '/api/estado':
             self.send_json(p.estado())
+        elif url.path == '/api/diagnostico':
+            self.send_json(dashboard_diagnostic())
         elif url.path == '/api/executor':
             self.send_json(p.estado_executor())
         elif url.path == '/api/fluxo':
@@ -513,7 +565,7 @@ def run_dashboard(port=8080):
     server_address = ('127.0.0.1', port)
     try:
         httpd = HTTPServer(server_address, DashboardHandler)
-        print(f"🚀 Cérebro Pessoal Dashboard rodando em: http://127.0.0.1:{port}")
+        print(f"Epistemic Memory Core dashboard: http://127.0.0.1:{port}")
         print("Pressione Ctrl+C para encerrar.")
         httpd.serve_forever()
     except OSError:

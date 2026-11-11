@@ -18,7 +18,7 @@ SUITES=('testes.py', 'testes_conhecimento.py', 'testes_autonomia.py', 'testes_de
 
 SUITES += ('testes_evidencias.py', 'testes_persistencia05.py', 'testes_mcp05.py')
 SUITES += ('testes_recuperacao_fila.py', 'testes_melhorias_seguranca.py', 'testes_operacao_melhorias.py')
-SUITES += ('testes_atribuicao.py', 'testes_continuacoes07.py')
+SUITES += ('testes_atribuicao.py', 'testes_continuacoes07.py', 'testes_dashboard.py')
 SUITE_TIMEOUT_SECONDS=300
 SUITE_SKIPPED_EXIT_CODE=77
 
