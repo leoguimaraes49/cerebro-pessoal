@@ -6,6 +6,7 @@ Versão: rascunho 0.2. Data: 28 de outubro de 2026. Situação: modelagem inicia
 
 O usuário reafirmou a avaliação inicial antes da entrevista ampla. A modelagem começa pelo núcleo que registra instrumentos, respostas, resultados, interpretações e perguntas de acompanhamento. A avaliação pretende orientar a personalização e a entrevista; a conversa posterior acrescenta experiências, contextos e exceções.
 
+A escolha de instrumento deve considerar sua versão, finalidade, condições de uso e adequação ao contexto.
 
 Preparar os registros necessários não equivale a já aplicar instrumentos. Quando a avaliação acontecer, suas respostas devem ter um destino verificável. Se for conduzida antes da integração, o local autorizado de registro e a migração posterior precisam ser explícitos; não alegar gravação automática no Obsidian.
 
@@ -105,6 +106,7 @@ O perfil inicial é uma síntese provisória. Contém as dimensões efetivamente
 
 Um resultado de rastreamento pode indicar sinais a investigar. Não cria uma afirmação de diagnóstico. Um diagnóstico que o usuário relate é registrado como relato atribuído; um documento profissional autorizado tem origem própria. A IA não preenche a ausência de avaliação clínica com sua opinião acumulada.
 
+Relatos posteriores contextualizam e podem contrariar interpretações. Um escore não prova a causa de uma decisão específica. Essa ligação, se levantada, permanece hipótese ligada às situações e às alternativas explicativas.
 
 Se o objetivo for esclarecer uma possível condição clínica, o sistema pode organizar informações úteis para avaliação por profissional qualificado. Sugestões cotidianas podem ser personalizadas pelas dificuldades e preferências relatadas, sem exigir atribuir primeiro um diagnóstico à pessoa.
 

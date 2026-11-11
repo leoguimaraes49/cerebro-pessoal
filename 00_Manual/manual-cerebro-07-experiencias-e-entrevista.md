@@ -40,6 +40,7 @@ Criar uma experiência identificável quando houver conteúdo e utilidade sufici
 
 Decidir, executar e obter resultado são acontecimentos distintos. Uma intenção não preenche o campo de ação concluída; ausência de retorno não preenche resultado de sucesso. As opções percebidas registram o que a pessoa sabia naquele momento, sem reescrever retroativamente a decisão com conhecimento posterior.
 
+Uma análise pode relacionar razões, emoções e condições à escolha, conservando alternativas explicativas. Não calcular um percentual de emoção versus razão nem atribuir uma causa a uma decisão apenas porque há um resultado de avaliação.
 
 ## 5. Questão para entrevista
 
