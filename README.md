@@ -6,14 +6,14 @@
 [![Protocol](https://img.shields.io/badge/protocol-MCP%201.26-purple.svg)](https://modelcontextprotocol.io/)
 [![Embeddings](https://img.shields.io/badge/embeddings-E5--multilingual%20(ONNX%20Local)-green.svg)](https://github.com/microsoft/onnxruntime)
 [![Storage](https://img.shields.io/badge/storage-SQLite%20%2B%20Markdown-orange.svg)](https://obsidian.md/)
-[![Testes](https://img.shields.io/badge/testes-19%20su%C3%ADtes-blue.svg)](#-suíte-de-testes-automatizados)
+[![Testes](https://img.shields.io/badge/testes-20%20su%C3%ADtes-blue.svg)](#-suíte-de-testes-automatizados)
 [![Version](https://img.shields.io/badge/version-v0.5%20%2B%20Patch%2007-blueviolet.svg)]()
 
 ---
 
 ## 💡 O que é o projeto?
 
-O **Cérebro Pessoal Engine** é uma infraestrutura de software projetada para resolver os maiores gargalos de confiabilidade em sistemas de memória para Inteligência Artificial:
+O **Epistemic Memory Core** é uma infraestrutura de software projetada para resolver os maiores gargalos de confiabilidade em sistemas de memória para Inteligência Artificial:
 
 1. **Amnésia e Alucinação Cumulativa:** Assistentes tradicionais misturam fatos observados com inferências sintéticas e perdem a linhagem das premissas.
 2. **Corrupção de Estado e Condições de Corrida (*Race Conditions*):** Múltiplos processos ou agentes escrevendo sem travas de nível de sistema operacional e sem reserva atômica de nomes.
@@ -171,13 +171,19 @@ sequenceDiagram
 
 ## 🖥️ Interface Web Local (`dashboard.py`)
 
-O repositório inclui uma interface gráfica moderna, responsiva e em modo escuro, construída **exclusivamente com a biblioteca padrão do Python** (sem necessidade de instalar React, Node.js ou frameworks pesados).
+O acesso principal para assistentes de IA é a **ponte MCP**: um cliente compatível e autorizado pode consultar e registrar informações por meio das ferramentas do motor. A CLI é outra opção de acesso local. Veja [como conectar um assistente via MCP](#4-conectar-seu-assistente-de-ia-via-mcp).
 
-### Funcionalidades do Dashboard:
-- **Monitor de Saúde em Tempo Real:** Status de atividade do worker, PID vivo, tempo de heartbeat e volume de tarefas completadas.
-- **Explorador da Busca Híbrida:** Teste visual de consultas com pontuação RRF, combinando vetores semânticos locais (E5) com busca léxica e relações do grafo.
-- **Painel de Demandas e Pendências:** Visualização clara das dúvidas de atribuição e perguntas abertas do sistema.
-- **Ações Rápidas de Manutenção com 1 Clique:** Disparo de auditorias de integridade do cofre, reconstrução de visões e execução dos autotestes.
+O dashboard é uma **interface complementar e opcional**, voltada ao acompanhamento, à consulta e ao envio de algumas tarefas de manutenção. Ele não é um chat com IA e ainda não possui formulário para registrar fontes. A aba de manual apresenta uma seleção resumida; o [manual completo](00_Manual/) está disponível no repositório.
+
+A interface é construída com a biblioteca padrão do Python (não requer React, Node.js ou um framework web). As dependências do motor continuam necessárias.
+
+### Funcionalidades do dashboard
+- **Estado local:** consulta a situação relatada do trabalhador, o sinal de atividade, os registros catalogados e o último resultado de autotestes para a versão atual do código.
+- **Busca:** consulta por texto e relações do grafo; a etapa vetorial E5 é opcional e depende de configuração e arquivos locais. A disponibilidade da etapa vetorial não é garantida apenas por estar configurada.
+- **Demandas e fontes:** consulta às pendências e ao catálogo de fontes, conforme a autorização local.
+- **Manutenção:** envio de auditorias, atualização de visões e autotestes para a fila. O processamento dessas tarefas requer um trabalhador habilitado e em execução.
+
+**O dashboard não inicia o trabalhador automaticamente.** Ele é um processo separado, desabilitado por padrão. Consulte o [guia de autonomia](docs/guias/AUTONOMIA.md) para habilitar e iniciar o trabalhador. O estado mostrado é um diagnóstico do momento, não uma garantia de funcionamento contínuo.
 
 Para iniciar o dashboard:
 ```bash
@@ -222,7 +228,7 @@ python src/dashboard.py
 │   ├── provedores.py            # Chamada segura a modelos textuais com subprocesso isolado
 │   ├── melhorias.py             # Módulo de avaliação e adoção atômica de melhorias de código
 │   └── revisoes.py              # Controle de revisões e histórico de auditoria
-├── tests/                       # 19 suítes ativas (autoteste) + 2 scripts MCP históricos + apoio_testes04.py
+├── tests/                       # 20 suítes ativas (autoteste) + 2 scripts MCP históricos + apoio_testes04.py
 ├── LICENSE                      # Licença personalizada: Uso Pessoal / Não Comercial Exclusiva do Autor
 ├── pyproject.toml               # Metadados do pacote e configuração de testes
 └── requirements-execucao04.txt  # Dependências Python
@@ -320,10 +326,10 @@ O motor confere os SHA-256 dos dois arquivos antes de carregá-los. Para habilit
 
 ## 🧪 Suíte de Testes Automatizados
 
-O repositório contém **19 suítes automatizadas** em [`tests/`](tests/), com casos unitários e verificações MCP de ponta a ponta usando dados fictícios em diretórios temporários. Para rodar a bateria completa, instale primeiro os dois arquivos da busca vetorial.
+O repositório contém **20 suítes automatizadas** em [`tests/`](tests/), com casos unitários e verificações MCP de ponta a ponta usando dados fictícios em diretórios temporários. Para rodar a bateria completa, instale primeiro os dois arquivos da busca vetorial.
 
 ```powershell
-# Executar a bateria completa das 19 suítes com validação criptográfica por hash de código
+# Executar a bateria completa das 20 suítes com validação criptográfica por hash de código
 $env:CEREBRO_PESSOAL_ACESSO = "permitido"
 .\.venv\Scripts\python.exe src/cli.py autotestes
 ```
@@ -333,6 +339,7 @@ No Linux, execute `CEREBRO_PESSOAL_ACESSO=permitido ./.venv/bin/python src/cli.p
 Sem os recursos vetoriais e sem um caminho alternativo configurado, a suíte vetorial fica como `skipped` e o resultado geral fica `incomplete` se as demais passarem. Um caminho explícito inválido ou uma instalação parcial gera falha. As operações que exigem a bateria completa continuam condicionadas a um relatório `passed`.
 
 ### Principais Suítes Cobertas:
+- **`tests/testes_dashboard.py`**: Estados do painel, relatório de autotestes e configuração da busca vetorial.
 - **`tests/testes.py`**: Integridade atômica, exclusão de arquivo pelo SO e digest SHA-256.
 - **`tests/testes_persistencia05.py`**: Concorrência de múltiplos processos e prevenção de dirty reads.
 - **`tests/testes_evidencias.py`**: Verificador determinístico de claims sem chamada a modelo.
